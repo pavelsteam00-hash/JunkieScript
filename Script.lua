@@ -46,8 +46,6 @@ local Interface = {
     BgColor = Color3fromRGB(12, 12, 15),
     SectionColor = Color3fromRGB(18, 18, 22),
     TextColor = Color3fromRGB(240, 240, 240),
-    StatusGreen = Color3fromRGB(100, 255, 100),
-    StatusRed = Color3fromRGB(255, 80, 80),
     MenuComponents = {left = {}, right = {}},
     UIComponents = {},
 }
@@ -161,7 +159,7 @@ task_spawn(function()
     loaderText.ZIndex = 5002
 
     local subText = Drawing.new("Text")
-    subText.Text = "Finalizing Secure Layer..."
+    subText.Text = "Applying Bypass..."
     subText.Size = 13
     subText.Center = true
     subText.Position = loaderBg.Position + Vector2new(150, 48)
@@ -185,19 +183,19 @@ task_spawn(function()
     barFill.Visible = true
     barFill.ZIndex = 5003
 
-    local modules = {"Buffer", "Anti-Cheat", "ESP Engine", "Aimbot", "Ready"}
+    local modules = {"Encapsulation", "Input Spoof", "Resource Hooks", "UI Sync", "Secure"}
     local start = tick()
     while tick() - start < 4 do
         local progress = (tick() - start) / 4
         barFill.Size = Vector2new(260 * progress, 4)
-        subText.Text = "Sync: " .. modules[math_floor(progress * #modules) + 1]
+        subText.Text = "Security: " .. modules[math_floor(progress * #modules) + 1]
         task_wait()
     end
 
     loaderBg.Visible = false loaderBorder.Visible = false loaderText.Visible = false subText.Visible = false barBg.Visible = false barFill.Visible = false
     Interface.Loaded = true
     Interface.Visible = true
-    CustomNotify("SYSTEM", "Protection Active", Interface.AccentColor)
+    CustomNotify("SECURE", "Trident Bypass Applied", Interface.AccentColor)
 end)
 
 local menuPosition = Vector2new(300, 200)
@@ -256,15 +254,15 @@ task_spawn(function()
         table_insert(Interface.MenuComponents[column], cp)
     end
     
-    AddToggle("ENABLE AIMBOT", false, function(v) AimSettings.Active = v CustomNotify("COMBAT", v and "Aimbot Enabled" or "Aimbot Disabled", v and Interface.StatusGreen or Interface.StatusRed) end, "left", 50)
+    AddToggle("ENABLE AIMBOT", false, function(v) AimSettings.Active = v CustomNotify("COMBAT", v and "Aimbot ON" or "Aimbot OFF", v and Color3fromRGB(120,255,120) or Color3fromRGB(255,120,120)) end, "left", 50)
     AddToggle("WALL CHECK", false, function(v) AimSettings.WallCheck = v end, "left", 75)
     AddToggle("TARGET BODY", false, function(v) AimSettings.TargetArea = v and "LowerTorso" or "Head" end, "left", 100)
-    AddToggle("CHECK SLEEPERS (AIM)", false, function(v) AimSettings.SleeperCheck = v end, "left", 125)
+    AddToggle("CHECK SLEEPERS", false, function(v) AimSettings.SleeperCheck = v end, "left", 125)
     AddSlider("FOV SIZE", 20, 200, 80, function(v) AimSettings.FOVSize = v end, "left", 160)
     AddSlider("SMOOTHNESS", 1, 20, 5, function(v) AimSettings.Smoothness = v end, "left", 205)
     
-    AddToggle("PLAYER ESP", false, function(v) VisualSettings.PlayerESP = v CustomNotify("VISUALS", v and "ESP Engine Started" or "ESP Engine Stopped", v and Interface.StatusGreen or Interface.StatusRed) end, "right", 50)
-    AddToggle("IGNORE SLEEPERS (ESP)", false, function(v) VisualSettings.SleeperCheck = v end, "right", 75)
+    AddToggle("PLAYER ESP", false, function(v) VisualSettings.PlayerESP = v CustomNotify("VISUALS", v and "ESP ON" or "ESP OFF") end, "right", 50)
+    AddToggle("IGNORE SLEEPERS", false, function(v) VisualSettings.SleeperCheck = v end, "right", 75)
     AddToggle("STONE ORE ESP", false, function(v) VisualSettings.StoneESP = v end, "right", 100)
     AddToggle("IRON ORE ESP", false, function(v) VisualSettings.IronESP = v end, "right", 125)
     AddToggle("NITRATE ORE ESP", false, function(v) VisualSettings.NitrateESP = v end, "right", 150)
@@ -373,7 +371,7 @@ RunService.RenderStepped:Connect(function()
                 if el.type == "toggle" then
                     el.bg.Position = pos + Vector2new(0, 1)
                     el.label.Position = pos + Vector2new(25, 0)
-                    el.bg.Color = el.state and Interface.StatusGreen or Color3fromRGB(45, 45, 50)
+                    el.bg.Color = el.state and Interface.AccentColor or Color3fromRGB(45, 45, 50)
                     el.bg.Visible, el.label.Visible = true, true
                 elseif el.type == "slider" then
                     el.label.Position = pos
@@ -476,7 +474,7 @@ end)
 UserInputService.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.RightShift then 
         Interface.Visible = not Interface.Visible 
-        CustomNotify("INTERFACE", Interface.Visible and "Menu Visible" or "Menu Hidden", Interface.Visible and Interface.StatusGreen or Interface.StatusRed)
+        CustomNotify("INTERFACE", Interface.Visible and "Opened" or "Closed", Interface.AccentColor)
     end
     if not Interface.Visible then return end
     
@@ -484,7 +482,7 @@ UserInputService.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         if m.X > menuPosition.X + 440 and m.X < menuPosition.X + 480 and m.Y > menuPosition.Y and m.Y < menuPosition.Y + 35 then
             Interface.Visible = false
-            CustomNotify("INTERFACE", "Menu Hidden", Interface.StatusRed)
+            CustomNotify("INTERFACE", "Closed", Interface.AccentColor)
             return
         end
         if m.Y < menuPosition.Y + 35 then Interface.Moving = true dragStartOffset = menuPosition - m return end
