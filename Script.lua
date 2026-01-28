@@ -120,7 +120,7 @@ local function CustomNotify(title, text, color)
             task_wait(0.01)
         end
 
-        task_wait(3.5)
+        task_wait(1.0) -- Уведомление теперь ровно на 1 секунду
 
         bg.Visible = false line.Visible = false tText.Visible = false bText.Visible = false
         bg:Remove() line:Remove() tText:Remove() bText:Remove()
@@ -254,14 +254,15 @@ task_spawn(function()
         table_insert(Interface.MenuComponents[column], cp)
     end
     
-    AddToggle("ENABLE AIMBOT", false, function(v) AimSettings.Active = v CustomNotify("COMBAT", v and "Aimbot ON" or "Aimbot OFF", v and Color3fromRGB(120,255,120) or Color3fromRGB(255,120,120)) end, "left", 50)
+    -- Исправлены цвета уведомлений на фиолетовый
+    AddToggle("ENABLE AIMBOT", false, function(v) AimSettings.Active = v CustomNotify("COMBAT", v and "Aimbot ON" or "Aimbot OFF", Interface.AccentColor) end, "left", 50)
     AddToggle("WALL CHECK", false, function(v) AimSettings.WallCheck = v end, "left", 75)
     AddToggle("TARGET BODY", false, function(v) AimSettings.TargetArea = v and "LowerTorso" or "Head" end, "left", 100)
     AddToggle("CHECK SLEEPERS", false, function(v) AimSettings.SleeperCheck = v end, "left", 125)
     AddSlider("FOV SIZE", 20, 200, 80, function(v) AimSettings.FOVSize = v end, "left", 160)
     AddSlider("SMOOTHNESS", 1, 20, 5, function(v) AimSettings.Smoothness = v end, "left", 205)
     
-    AddToggle("PLAYER ESP", false, function(v) VisualSettings.PlayerESP = v CustomNotify("VISUALS", v and "ESP ON" or "ESP OFF") end, "right", 50)
+    AddToggle("PLAYER ESP", false, function(v) VisualSettings.PlayerESP = v CustomNotify("VISUALS", v and "ESP ON" or "ESP OFF", Interface.AccentColor) end, "right", 50)
     AddToggle("IGNORE SLEEPERS", false, function(v) VisualSettings.SleeperCheck = v end, "right", 75)
     AddToggle("STONE ORE ESP", false, function(v) VisualSettings.StoneESP = v end, "right", 100)
     AddToggle("IRON ORE ESP", false, function(v) VisualSettings.IronESP = v end, "right", 125)
@@ -336,6 +337,7 @@ RunService.RenderStepped:Connect(function()
     if not Interface.Loaded then return end
     local mousePos = UserInputService:GetMouseLocation()
     
+    -- FOV теперь не зависит от Interface.Visible
     FOVCircle.Visible = AimSettings.Active and AimSettings.ShowFOV
     FOVCircle.Radius = AimSettings.FOVSize
     FOVCircle.Position = mousePos
@@ -400,7 +402,12 @@ RunService.RenderStepped:Connect(function()
             end
         end
     else
-        for _, obj in ipairs(Interface.UIComponents) do obj.Visible = false end
+        -- Скрываем только UI компоненты меню, не трогая FOV
+        for _, obj in ipairs(Interface.UIComponents) do
+            if obj ~= FOVCircle then
+                obj.Visible = false
+            end
+        end
     end
 
     if VisualSettings.PlayerESP then
