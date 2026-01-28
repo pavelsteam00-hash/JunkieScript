@@ -23,7 +23,8 @@ local AimSettings = {
     FOVSize = 80,
     Smoothness = 5,
     SleeperCheck = false,
-    ShowFOV = true
+    ShowFOV = true,
+    FOVColor = Color3fromRGB(255, 255, 255)
 }
 
 local VisualSettings = {
@@ -33,7 +34,7 @@ local VisualSettings = {
     IronESP = false,
     NitrateESP = false,
     MaxDistance = 1000,
-    ESPColor = Color3fromRGB(170, 100, 255)
+    ESPColor = Color3fromRGB(180, 120, 255)
 }
 
 local Interface = {
@@ -43,19 +44,20 @@ local Interface = {
     ColorMenuOpen = false,
     Loaded = false,
     AccentColor = Color3fromRGB(180, 120, 255),
-    BgColor = Color3fromRGB(12, 12, 15),
-    SectionColor = Color3fromRGB(18, 18, 22),
-    TextColor = Color3fromRGB(240, 240, 240),
+    BgColor = Color3fromRGB(10, 10, 12),
+    SectionColor = Color3fromRGB(15, 15, 18),
+    BorderColor = Color3fromRGB(30, 30, 35),
+    TextColor = Color3fromRGB(255, 255, 255),
     MenuComponents = {left = {}, right = {}},
     UIComponents = {},
 }
 
 local ColorPalette = {
-    Color3fromRGB(170, 100, 255), 
-    Color3fromRGB(255, 80, 80),   
-    Color3fromRGB(80, 255, 150),  
+    Color3fromRGB(180, 120, 255), 
+    Color3fromRGB(255, 70, 70),   
+    Color3fromRGB(70, 255, 130),  
     Color3fromRGB(255, 255, 255), 
-    Color3fromRGB(255, 200, 0)
+    Color3fromRGB(255, 180, 0)
 }
 
 local ESPStorage = {}
@@ -71,249 +73,276 @@ local function CreateDrawing(type, props)
     return obj
 end
 
-local function CustomNotify(title, text, color)
+local function CustomNotify(title, text)
+    local purple = Color3fromRGB(180, 120, 255)
+    for _, oldNotif in ipairs(ActiveNotifications) do
+        oldNotif.Active = false
+        pcall(function()
+            for _, obj in ipairs(oldNotif.objs) do 
+                obj.Visible = false 
+                obj:Remove() 
+            end
+        end)
+    end
+    ActiveNotifications = {}
+    local n = {Active = true, objs = {}}
+    table_insert(ActiveNotifications, n)
     task_spawn(function()
-        local nIdx = #ActiveNotifications + 1
-        local offset = (nIdx - 1) * 70
-        
+        local screen = Camera.ViewportSize
+        local nWidth, nHeight = 310, 75
+        local targetPos = Vector2new(screen.X - 330, screen.Y - 120)
+        local startPos = Vector2new(screen.X + 50, screen.Y - 120)
         local bg = Drawing.new("Square")
-        bg.Size = Vector2new(260, 60)
+        bg.Size = Vector2new(nWidth, nHeight)
         bg.Color = Interface.BgColor
         bg.Filled = true
-        bg.ZIndex = 3000
+        bg.ZIndex = 30000
         bg.Visible = true
-
         local line = Drawing.new("Square")
-        line.Size = Vector2new(5, 60)
-        line.Color = color or Interface.AccentColor
+        line.Size = Vector2new(4, nHeight)
+        line.Color = purple
         line.Filled = true
-        line.ZIndex = 3001
+        line.ZIndex = 30001
         line.Visible = true
-
-        local tText = Drawing.new("Text")
-        tText.Text = title
-        tText.Size = 18
-        tText.Color = color or Interface.AccentColor
-        tText.Font = 2
-        tText.ZIndex = 3002
-        tText.Visible = true
-
-        local bText = Drawing.new("Text")
-        bText.Text = text
-        bText.Size = 14
-        bText.Color = Color3fromRGB(220, 220, 220)
-        bText.ZIndex = 3002
-        bText.Visible = true
-
-        table_insert(ActiveNotifications, {bg, line, tText, bText})
-
-        local screenX = Camera.ViewportSize.X
-        local screenY = Camera.ViewportSize.Y
-
-        for i = 1, 15 do
-            local xPos = screenX - (i * 20)
-            local yPos = screenY - 120 - offset
-            bg.Position = Vector2new(xPos, yPos)
-            line.Position = Vector2new(xPos, yPos)
-            tText.Position = Vector2new(xPos + 15, yPos + 10)
-            bText.Position = Vector2new(xPos + 15, yPos + 32)
-            task_wait(0.01)
+        local tLabel = Drawing.new("Text")
+        tLabel.Text = title:upper()
+        tLabel.Size = 19
+        tLabel.Font = 2
+        tLabel.Color = purple
+        tLabel.ZIndex = 30002
+        tLabel.Visible = true
+        local bLabel = Drawing.new("Text")
+        bLabel.Text = text
+        bLabel.Size = 15
+        bLabel.Color = Color3fromRGB(210, 210, 210)
+        bLabel.ZIndex = 30002
+        bLabel.Visible = true
+        n.objs = {bg, line, tLabel, bLabel}
+        
+        local t = 0
+        while t < 1 and n.Active do
+            t = t + 0.04 
+            local curPos = startPos:Lerp(targetPos, t)
+            bg.Position = curPos
+            line.Position = curPos
+            tLabel.Position = curPos + Vector2new(20, 15)
+            bLabel.Position = curPos + Vector2new(20, 42)
+            RunService.RenderStepped:Wait()
         end
-
-        task_wait(1.0) -- Уведомление теперь ровно на 1 секунду
-
-        bg.Visible = false line.Visible = false tText.Visible = false bText.Visible = false
-        bg:Remove() line:Remove() tText:Remove() bText:Remove()
-        table_remove(ActiveNotifications, 1)
+        
+        task_wait(1.0)
+        
+        while t > 0 and n.Active do
+            t = t - 0.06
+            local curPos = startPos:Lerp(targetPos, t)
+            bg.Position = curPos
+            line.Position = curPos
+            tLabel.Position = curPos + Vector2new(20, 15)
+            bLabel.Position = curPos + Vector2new(20, 42)
+            RunService.RenderStepped:Wait()
+        end
+        if n.Active then for _, obj in ipairs(n.objs) do obj:Remove() end end
     end)
 end
 
 task_spawn(function()
-    local screenCenter = Camera.ViewportSize / 2
-    local loaderSize = Vector2new(300, 110)
+    local screen = Camera.ViewportSize
+    local center = screen / 2
+    local soft_blue = Color3fromRGB(200, 220, 255)
     
-    local loaderBg = Drawing.new("Square")
-    loaderBg.Size = loaderSize
-    loaderBg.Position = screenCenter - (loaderSize/2)
-    loaderBg.Color = Interface.BgColor
-    loaderBg.Filled = true
-    loaderBg.Visible = true
-    loaderBg.ZIndex = 5000
+    local black_out = Drawing.new("Square")
+    black_out.Size = screen
+    black_out.Color = Color3fromRGB(0, 0, 0)
+    black_out.Filled = true
+    black_out.Transparency = 0
+    black_out.Visible = true
+    black_out.ZIndex = 19000
+    
+    local lines = {}
+    for i = 1, 20 do
+        local l = Drawing.new("Square")
+        l.Size = Vector2new(1, math_random(30, 80))
+        l.Position = Vector2new(math_random(0, screen.X), math_random(0, screen.Y))
+        l.Color = Interface.AccentColor
+        l.Transparency = 0
+        l.Filled = true
+        l.Visible = true
+        l.ZIndex = 19001
+        table_insert(lines, l)
+    end
+    
+    local load_circle = Drawing.new("Circle")
+    load_circle.Position = center
+    load_circle.Radius = 50
+    load_circle.Thickness = 2
+    load_circle.Color = Interface.AccentColor
+    load_circle.Transparency = 0
+    load_circle.Visible = true
+    load_circle.ZIndex = 20000
+    
+    local load_text = Drawing.new("Text")
+    load_text.Text = "SILVER"
+    load_text.Size = 35
+    load_text.Font = 2
+    load_text.Center = true
+    load_text.Position = center - Vector2new(0, 18)
+    load_text.Color = soft_blue
+    load_text.Transparency = 0
+    load_text.Visible = true
+    load_text.ZIndex = 20001
+    
+    local status = Drawing.new("Text")
+    status.Text = "LOADING..."
+    status.Size = 14
+    status.Center = true
+    status.Position = center + Vector2new(0, 75)
+    status.Color = Interface.AccentColor
+    status.Transparency = 0
+    status.Visible = true
+    status.ZIndex = 20001
 
-    local loaderBorder = Drawing.new("Square")
-    loaderBorder.Size = loaderSize
-    loaderBorder.Position = loaderBg.Position
-    loaderBorder.Color = Interface.AccentColor
-    loaderBorder.Thickness = 1
-    loaderBorder.Filled = false
-    loaderBorder.Visible = true
-    loaderBorder.ZIndex = 5001
+    for i = 0, 1, 0.05 do
+        black_out.Transparency = i * 0.85
+        load_circle.Transparency = i
+        load_text.Transparency = i
+        status.Transparency = i
+        for _, l in ipairs(lines) do l.Transparency = i * 0.4 end
+        RunService.RenderStepped:Wait()
+    end
 
-    local loaderText = Drawing.new("Text")
-    loaderText.Text = "PROJECT SILVER"
-    loaderText.Size = 18
-    loaderText.Center = true
-    loaderText.Position = loaderBg.Position + Vector2new(150, 20)
-    loaderText.Color = Color3fromRGB(255, 255, 255)
-    loaderText.Visible = true
-    loaderText.ZIndex = 5002
-
-    local subText = Drawing.new("Text")
-    subText.Text = "Applying Bypass..."
-    subText.Size = 13
-    subText.Center = true
-    subText.Position = loaderBg.Position + Vector2new(150, 48)
-    subText.Color = Interface.AccentColor
-    subText.Visible = true
-    subText.ZIndex = 5002
-
-    local barBg = Drawing.new("Square")
-    barBg.Size = Vector2new(260, 4)
-    barBg.Position = loaderBg.Position + Vector2new(20, 80)
-    barBg.Color = Color3fromRGB(30, 30, 35)
-    barBg.Filled = true
-    barBg.Visible = true
-    barBg.ZIndex = 5002
-
-    local barFill = Drawing.new("Square")
-    barFill.Size = Vector2new(0, 4)
-    barFill.Position = barBg.Position
-    barFill.Color = Interface.AccentColor
-    barFill.Filled = true
-    barFill.Visible = true
-    barFill.ZIndex = 5003
-
-    local modules = {"Encapsulation", "Input Spoof", "Resource Hooks", "UI Sync", "Secure"}
     local start = tick()
     while tick() - start < 4 do
-        local progress = (tick() - start) / 4
-        barFill.Size = Vector2new(260 * progress, 4)
-        subText.Text = "Security: " .. modules[math_floor(progress * #modules) + 1]
+        local prog = (tick() - start) / 4
+        status.Text = "INITIALIZING SYSTEM: " .. math_floor(prog * 100) .. "%"
+        load_circle.Radius = 50 + (math.sin(tick() * 5) * 5)
+        for _, l in ipairs(lines) do
+            l.Position = l.Position + Vector2new(0, 8)
+            if l.Position.Y > screen.Y then l.Position = Vector2new(math_random(0, screen.X), -100) end
+        end
         task_wait()
     end
 
-    loaderBg.Visible = false loaderBorder.Visible = false loaderText.Visible = false subText.Visible = false barBg.Visible = false barFill.Visible = false
+    for i = 1, 0, -0.05 do
+        black_out.Transparency = i * 0.85
+        load_circle.Transparency = i
+        load_text.Transparency = i
+        status.Transparency = i
+        for _, l in ipairs(lines) do l.Transparency = i * 0.4 end
+        RunService.RenderStepped:Wait()
+    end
+    
+    black_out:Remove() load_circle:Remove() load_text:Remove() status:Remove()
+    for _, l in ipairs(lines) do l:Remove() end
     Interface.Loaded = true
     Interface.Visible = true
-    CustomNotify("SECURE", "Trident Bypass Applied", Interface.AccentColor)
+    CustomNotify("SUCCESS", "Silver Private Premium Active")
 end)
 
-local menuPosition = Vector2new(300, 200)
-local menuDimensions = Vector2new(480, 400)
+local menuPosition = Vector2new(350, 250)
+local menuDimensions = Vector2new(500, 440)
 local dragStartOffset = Vector2new(0, 0)
-
-local Background, MenuBorder, TopAccent, TopBar, Title, CloseButton
-local LeftSectionBg, RightSectionBg
+local MainFrame, BorderLine, Header, HeaderTitle, LeftPane, RightPane
 
 task_spawn(function()
     while not Interface.Loaded do task_wait(0.1) end
-    
-    Background = CreateDrawing("Square", { Size = menuDimensions, Color = Interface.BgColor, Filled = true, Visible = false, ZIndex = 10 })
-    MenuBorder = CreateDrawing("Square", { Size = menuDimensions, Color = Color3fromRGB(35, 35, 40), Filled = false, Thickness = 1, Visible = false, ZIndex = 20 })
-    TopAccent = CreateDrawing("Square", { Size = Vector2new(menuDimensions.X, 2), Color = Interface.AccentColor, Filled = true, Visible = false, ZIndex = 21 })
-    TopBar = CreateDrawing("Square", { Size = Vector2new(menuDimensions.X, 35), Color = Color3fromRGB(15, 15, 18), Filled = true, Visible = false, ZIndex = 11 })
-    Title = CreateDrawing("Text", { Text = "PROJECT SILVER", Size = 18, Font = 2, Color = Interface.TextColor, Visible = false, ZIndex = 14 })
-    CloseButton = CreateDrawing("Text", { Text = "X", Size = 18, Font = 2, Color = Interface.AccentColor, Visible = false, ZIndex = 25 })
-    
-    LeftSectionBg = CreateDrawing("Square", { Size = Vector2new(225, 350), Color = Interface.SectionColor, Filled = true, Visible = false, ZIndex = 12 })
-    RightSectionBg = CreateDrawing("Square", { Size = Vector2new(225, 350), Color = Interface.SectionColor, Filled = true, Visible = false, ZIndex = 12 })
+    MainFrame = CreateDrawing("Square", { Size = menuDimensions, Color = Interface.BgColor, Filled = true, Visible = false, ZIndex = 10 })
+    BorderLine = CreateDrawing("Square", { Size = menuDimensions, Color = Interface.BorderColor, Filled = false, Thickness = 1, Visible = false, ZIndex = 11 })
+    Header = CreateDrawing("Square", { Size = Vector2new(menuDimensions.X, 3), Color = Interface.AccentColor, Filled = true, Visible = false, ZIndex = 15 })
+    HeaderTitle = CreateDrawing("Text", { Text = "SILVER PRIVATE", Size = 16, Font = 2, Color = Interface.TextColor, Visible = false, ZIndex = 16 })
+    LeftPane = CreateDrawing("Square", { Size = Vector2new(235, 380), Color = Interface.SectionColor, Filled = true, Visible = false, ZIndex = 12 })
+    RightPane = CreateDrawing("Square", { Size = Vector2new(235, 380), Color = Interface.SectionColor, Filled = true, Visible = false, ZIndex = 12 })
 
     local function AddToggle(name, default, callback, column, ypos)
         local toggle = {
             type = "toggle", name = name, state = default, callback = callback,
-            bg = CreateDrawing("Square", {Size = Vector2new(14, 14), Color = Color3fromRGB(40, 40, 45), Filled = true, Visible = false, ZIndex = 16}),
+            bg = CreateDrawing("Square", {Size = Vector2new(12, 12), Color = Color3fromRGB(30, 30, 35), Filled = true, Visible = false, ZIndex = 16}),
             label = CreateDrawing("Text", {Text = name, Size = 13, Font = 2, Color = Interface.TextColor, Visible = false, ZIndex = 16}),
             ypos = ypos, column = column
         }
         table_insert(Interface.MenuComponents[column], toggle)
     end
-    
     local function AddSlider(name, min, max, default, callback, column, ypos)
         local slider = {
             type = "slider", name = name, min = min, max = max, value = default, callback = callback,
-            label = CreateDrawing("Text", {Text = name, Size = 13, Font = 2, Color = Interface.TextColor, Visible = false, ZIndex = 16}),
+            label = CreateDrawing("Text", {Text = name, Size = 13, Font = 2, Color = Color3fromRGB(180, 180, 180), Visible = false, ZIndex = 16}),
             valueText = CreateDrawing("Text", {Text = tostring(default), Size = 13, Font = 2, Color = Interface.AccentColor, Visible = false, ZIndex = 16}),
-            bg = CreateDrawing("Square", {Size = Vector2new(190, 4), Color = Color3fromRGB(30, 30, 35), Filled = true, Visible = false, ZIndex = 16}),
-            fill = CreateDrawing("Square", {Size = Vector2new(0, 4), Color = Interface.AccentColor, Filled = true, Visible = false, ZIndex = 17}),
+            bg = CreateDrawing("Square", {Size = Vector2new(200, 3), Color = Color3fromRGB(25, 25, 30), Filled = true, Visible = false, ZIndex = 16}),
+            fill = CreateDrawing("Square", {Size = Vector2new(0, 3), Color = Interface.AccentColor, Filled = true, Visible = false, ZIndex = 17}),
             ypos = ypos, column = column
         }
         table_insert(Interface.MenuComponents[column], slider)
     end
-
-    local function AddFullColorPicker(name, callback, column, ypos)
+    local function AddButton(name, callback, column, ypos)
+        local btn = {
+            type = "button", name = name, callback = callback,
+            bg = CreateDrawing("Square", {Size = Vector2new(200, 20), Color = Color3fromRGB(25, 25, 30), Filled = true, Visible = false, ZIndex = 16}),
+            label = CreateDrawing("Text", {Text = name, Size = 13, Font = 2, Center = true, Color = Interface.TextColor, Visible = false, ZIndex = 17}),
+            ypos = ypos, column = column
+        }
+        table_insert(Interface.MenuComponents[column], btn)
+    end
+    local function AddColorPicker(name, callback, column, ypos)
         local cp = {
             type = "colorpicker", name = name, callback = callback,
             label = CreateDrawing("Text", {Text = name, Size = 13, Font = 2, Color = Interface.TextColor, Visible = false, ZIndex = 16}),
-            preview = CreateDrawing("Square", {Size = Vector2new(190, 14), Color = VisualSettings.ESPColor, Filled = true, Visible = false, ZIndex = 17}),
-            selectorBg = CreateDrawing("Square", {Size = Vector2new(190, 35), Color = Color3fromRGB(25, 25, 30), Filled = true, Visible = false, ZIndex = 50}),
+            preview = CreateDrawing("Square", {Size = Vector2new(20, 10), Color = VisualSettings.ESPColor, Filled = true, Visible = false, ZIndex = 17}),
+            selectorBg = CreateDrawing("Square", {Size = Vector2new(150, 30), Color = Interface.BgColor, Filled = true, Visible = false, ZIndex = 50}),
             boxes = {}, ypos = ypos, column = column
         }
         for _, color in ipairs(ColorPalette) do
-            table_insert(cp.boxes, CreateDrawing("Square", {Size = Vector2new(25, 18), Color = color, Filled = true, Visible = false, ZIndex = 51}))
+            table_insert(cp.boxes, CreateDrawing("Square", {Size = Vector2new(20, 15), Color = color, Filled = true, Visible = false, ZIndex = 51}))
         end
         table_insert(Interface.MenuComponents[column], cp)
     end
-    
-    -- Исправлены цвета уведомлений на фиолетовый
-    AddToggle("ENABLE AIMBOT", false, function(v) AimSettings.Active = v CustomNotify("COMBAT", v and "Aimbot ON" or "Aimbot OFF", Interface.AccentColor) end, "left", 50)
-    AddToggle("WALL CHECK", false, function(v) AimSettings.WallCheck = v end, "left", 75)
-    AddToggle("TARGET BODY", false, function(v) AimSettings.TargetArea = v and "LowerTorso" or "Head" end, "left", 100)
-    AddToggle("CHECK SLEEPERS", false, function(v) AimSettings.SleeperCheck = v end, "left", 125)
-    AddSlider("FOV SIZE", 20, 200, 80, function(v) AimSettings.FOVSize = v end, "left", 160)
-    AddSlider("SMOOTHNESS", 1, 20, 5, function(v) AimSettings.Smoothness = v end, "left", 205)
-    
-    AddToggle("PLAYER ESP", false, function(v) VisualSettings.PlayerESP = v CustomNotify("VISUALS", v and "ESP ON" or "ESP OFF", Interface.AccentColor) end, "right", 50)
-    AddToggle("IGNORE SLEEPERS", false, function(v) VisualSettings.SleeperCheck = v end, "right", 75)
-    AddToggle("STONE ORE ESP", false, function(v) VisualSettings.StoneESP = v end, "right", 100)
-    AddToggle("IRON ORE ESP", false, function(v) VisualSettings.IronESP = v end, "right", 125)
-    AddToggle("NITRATE ORE ESP", false, function(v) VisualSettings.NitrateESP = v end, "right", 150)
-    AddFullColorPicker("ESP THEME COLOR", function(c) VisualSettings.ESPColor = c end, "right", 190)
+
+    AddToggle("Aimbot Master", false, function(v) 
+        AimSettings.Active = v 
+        CustomNotify("AIMBOT", v and "ENABLED" or "DISABLED")
+    end, "left", 60)
+    AddToggle("Wall Check", false, function(v) AimSettings.WallCheck = v end, "left", 85)
+    AddToggle("Ignore Sleepers", false, function(v) AimSettings.SleeperCheck = v end, "left", 110)
+    AddButton("Target: " .. AimSettings.TargetArea, function(obj) 
+        AimSettings.TargetArea = (AimSettings.TargetArea == "Head") and "LowerTorso" or "Head"
+        obj.label.Text = "Target: " .. AimSettings.TargetArea
+    end, "left", 140)
+    AddSlider("FOV Diameter", 20, 400, 80, function(v) AimSettings.FOVSize = v end, "left", 180)
+    AddSlider("Smooth Factor", 1, 30, 5, function(v) AimSettings.Smoothness = v end, "left", 230)
+
+    AddToggle("Player Visuals", false, function(v) 
+        VisualSettings.PlayerESP = v 
+        CustomNotify("PLAYER ESP", v and "ENABLED" or "DISABLED")
+    end, "right", 60)
+    AddToggle("Hide Sleepers", false, function(v) VisualSettings.SleeperCheck = v end, "right", 85)
+    AddToggle("Stone ESP", false, function(v) 
+        VisualSettings.StoneESP = v 
+        CustomNotify("STONE ESP", v and "ENABLED" or "DISABLED")
+    end, "right", 110)
+    AddToggle("Iron ESP", false, function(v) 
+        VisualSettings.IronESP = v 
+        CustomNotify("IRON ESP", v and "ENABLED" or "DISABLED")
+    end, "right", 135)
+    AddToggle("Nitrate ESP", false, function(v) 
+        VisualSettings.NitrateESP = v 
+        CustomNotify("NITRATE ESP", v and "ENABLED" or "DISABLED")
+    end, "right", 160)
+    AddColorPicker("Cheat Color (ESP)", function(c) VisualSettings.ESPColor = c end, "right", 190)
 end)
 
-local FOVCircle = CreateDrawing("Circle", { Thickness = 1, Color = VisualSettings.ESPColor, Transparency = 0.5, Filled = false, Visible = false, NumSides = 64, ZIndex = 999 })
+local FOVCircle = CreateDrawing("Circle", { Thickness = 1, Color = AimSettings.FOVColor, Transparency = 0.5, Filled = false, Visible = false, NumSides = 64, ZIndex = 999 })
 
 local function RemoveESP(obj)
     if ESPStorage[obj] then
-        pcall(function() ESPStorage[obj].Box:Remove() ESPStorage[obj].Fill:Remove() ESPStorage[obj].Dist:Remove() end)
+        pcall(function() 
+            ESPStorage[obj].Box.Visible = false
+            ESPStorage[obj].Fill.Visible = false
+            ESPStorage[obj].Dist.Visible = false
+            ESPStorage[obj].Box:Remove() 
+            ESPStorage[obj].Fill:Remove() 
+            ESPStorage[obj].Dist:Remove() 
+        end)
         ESPStorage[obj] = nil
     end
 end
-
-local function RemoveResource(obj)
-    if ResourceStorage[obj] then
-        pcall(function() ResourceStorage[obj]:Remove() end)
-        ResourceStorage[obj] = nil
-    end
-end
-
-task_spawn(function()
-    while true do
-        local p_tmp, r_tmp = {}, {}
-        for _, obj in pairs(Workspace:GetChildren()) do
-            if obj:IsA("Model") then
-                local root = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("LowerTorso")
-                if root and obj.Name ~= LocalPlayer.Name then table_insert(p_tmp, obj) end
-                
-                local mesh = obj:FindFirstChildOfClass("MeshPart")
-                if mesh and mesh.MeshId == "rbxassetid://12939036056" then
-                    if #obj:GetChildren() == 1 then table_insert(r_tmp, {model = obj, part = mesh, type = "Stone", color = Color3fromRGB(200, 200, 200)})
-                    else
-                        for _, part in pairs(obj:GetChildren()) do
-                            if part:IsA("BasePart") then
-                                if part.Color == Color3fromRGB(248, 248, 248) then table_insert(r_tmp, {model = obj, part = part, type = "Nitrate", color = Color3fromRGB(255, 255, 255)})
-                                elseif part.Color == Color3fromRGB(199, 172, 120) then table_insert(r_tmp, {model = obj, part = part, type = "Iron", color = Color3fromRGB(255, 170, 80)}) end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-        PlayerCache, ResourceCache = p_tmp, r_tmp
-        for p, _ in pairs(ESPStorage) do if not p or not p.Parent then RemoveESP(p) end end
-        for r, _ in pairs(ResourceStorage) do if not r or not r.Parent then RemoveResource(r) end end
-        task_wait(1)
-    end
-end)
 
 local function IsSleeper(model)
     local lt = model:FindFirstChild("LowerTorso")
@@ -333,179 +362,193 @@ local function CheckWall(part)
     return not cast
 end
 
+task_spawn(function()
+    while true do
+        local p_tmp, r_tmp = {}, {}
+        for _, obj in pairs(Workspace:GetChildren()) do
+            if obj:IsA("Model") then
+                local root = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("LowerTorso")
+                if root and obj.Name ~= LocalPlayer.Name then table_insert(p_tmp, obj) end
+                local mesh = obj:FindFirstChildOfClass("MeshPart")
+                if mesh and (mesh.MeshId == "rbxassetid://12939036056" or mesh.MeshId == "rbxassetid://13425026915") then
+                    local isFound = false
+                    for _, child in pairs(obj:GetChildren()) do
+                        if child:IsA("BasePart") then
+                            if child.Color == Color3fromRGB(248, 248, 248) then
+                                table_insert(r_tmp, {model = obj, part = child, type = "Nitrate", color = Color3fromRGB(255, 255, 255)})
+                                isFound = true break
+                            elseif child.Color == Color3fromRGB(199, 172, 120) or child.Color == Color3fromRGB(255, 170, 80) then
+                                table_insert(r_tmp, {model = obj, part = child, type = "Iron", color = Color3fromRGB(255, 170, 80)})
+                                isFound = true break
+                            end
+                        end
+                    end
+                    if not isFound then table_insert(r_tmp, {model = obj, part = mesh, type = "Stone", color = Color3fromRGB(200, 200, 200)}) end
+                end
+            end
+        end
+        PlayerCache, ResourceCache = p_tmp, r_tmp
+        task_wait(1.0)
+    end
+end)
+
 RunService.RenderStepped:Connect(function()
     if not Interface.Loaded then return end
     local mousePos = UserInputService:GetMouseLocation()
-    
-    -- FOV теперь не зависит от Interface.Visible
     FOVCircle.Visible = AimSettings.Active and AimSettings.ShowFOV
     FOVCircle.Radius = AimSettings.FOVSize
     FOVCircle.Position = mousePos
-    FOVCircle.Color = VisualSettings.ESPColor
-    
+    FOVCircle.Color = AimSettings.FOVColor
+
     if Interface.Visible then
         if Interface.Moving then menuPosition = mousePos + dragStartOffset end
         if Interface.DraggingSlider then
             local el = Interface.DraggingSlider
-            local sliderX = menuPosition.X + ((el.column == "left") and 25 or 250)
-            local p = math_clamp((mousePos.X - sliderX) / 190, 0, 1)
+            local sliderX = menuPosition.X + ((el.column == "left") and 20 or 265)
+            local p = math_clamp((mousePos.X - sliderX) / 200, 0, 1)
             el.value = math_floor(el.min + (el.max - el.min) * p)
             el.valueText.Text = tostring(el.value)
             el.callback(el.value)
         end
-
-        Background.Position = menuPosition Background.Visible = true
-        MenuBorder.Position = menuPosition MenuBorder.Visible = true
-        TopBar.Position = menuPosition TopBar.Visible = true
-        TopAccent.Position = menuPosition TopAccent.Visible = true
-        Title.Position = menuPosition + Vector2new(15, 8) Title.Visible = true
-        CloseButton.Position = menuPosition + Vector2new(452, 8) CloseButton.Visible = true
-        
-        LeftSectionBg.Position = menuPosition + Vector2new(10, 42)
-        LeftSectionBg.Visible = true
-        RightSectionBg.Position = menuPosition + Vector2new(245, 42)
-        RightSectionBg.Visible = true
-
+        MainFrame.Position = menuPosition MainFrame.Visible = true
+        BorderLine.Position = menuPosition BorderLine.Visible = true
+        Header.Position = menuPosition Header.Visible = true
+        HeaderTitle.Position = menuPosition + Vector2new(15, 10) HeaderTitle.Visible = true
+        LeftPane.Position = menuPosition + Vector2new(10, 45) LeftPane.Visible = true
+        RightPane.Position = menuPosition + Vector2new(255, 45) RightPane.Visible = true
         for col, elements in pairs(Interface.MenuComponents) do
-            local xOff = (col == "left") and 25 or 260
+            local xOff = (col == "left") and 20 or 265
             for _, el in ipairs(elements) do
                 local pos = menuPosition + Vector2new(xOff, el.ypos)
                 if el.type == "toggle" then
                     el.bg.Position = pos + Vector2new(0, 1)
-                    el.label.Position = pos + Vector2new(25, 0)
-                    el.bg.Color = el.state and Interface.AccentColor or Color3fromRGB(45, 45, 50)
+                    el.label.Position = pos + Vector2new(20, 0)
+                    el.bg.Color = el.state and Interface.AccentColor or Color3fromRGB(40, 40, 45)
                     el.bg.Visible, el.label.Visible = true, true
                 elseif el.type == "slider" then
                     el.label.Position = pos
-                    el.valueText.Position = pos + Vector2new(190 - el.valueText.TextBounds.X, 0)
-                    el.bg.Position = pos + Vector2new(0, 20)
-                    el.fill.Position = pos + Vector2new(0, 20)
-                    el.fill.Size = Vector2new(((el.value - el.min) / (el.max - el.min)) * 190, 4)
+                    el.valueText.Position = pos + Vector2new(200 - el.valueText.TextBounds.X, 0)
+                    el.bg.Position = pos + Vector2new(0, 18)
+                    el.fill.Position = pos + Vector2new(0, 18)
+                    el.fill.Size = Vector2new(((el.value - el.min) / (el.max - el.min)) * 200, 3)
                     el.label.Visible, el.valueText.Visible, el.bg.Visible, el.fill.Visible = true, true, true, true
+                elseif el.type == "button" then
+                    el.bg.Position = pos el.label.Position = pos + Vector2new(100, 2)
+                    el.bg.Visible, el.label.Visible = true, true
                 elseif el.type == "colorpicker" then
-                    el.label.Position = pos
-                    el.preview.Position = pos + Vector2new(0, 20)
+                    el.label.Position = pos el.preview.Position = pos + Vector2new(200 - 20, 2)
                     el.preview.Color = VisualSettings.ESPColor
                     el.label.Visible, el.preview.Visible = true, true
                     if Interface.ColorMenuOpen then
-                        el.selectorBg.Position = el.preview.Position + Vector2new(0, 18)
+                        el.selectorBg.Position = el.preview.Position + Vector2new(-130, 15)
                         el.selectorBg.Visible = true
                         for i, box in ipairs(el.boxes) do
-                            box.Position = el.selectorBg.Position + Vector2new(8 + (i-1) * 36, 8)
+                            box.Position = el.selectorBg.Position + Vector2new(5 + (i-1) * 28, 7)
                             box.Visible = true
                         end
-                    else
-                        el.selectorBg.Visible = false
-                        for _, b in ipairs(el.boxes) do b.Visible = false end
-                    end
+                    else el.selectorBg.Visible = false for _, b in ipairs(el.boxes) do b.Visible = false end end
                 end
             end
         end
+    else for _, obj in ipairs(Interface.UIComponents) do if obj ~= FOVCircle then obj.Visible = false end end end
+
+    -- УНИВЕРСАЛЬНАЯ ОЧИСТКА ESP
+    if not VisualSettings.PlayerESP then
+        for p, _ in pairs(ESPStorage) do RemoveESP(p) end
     else
-        -- Скрываем только UI компоненты меню, не трогая FOV
-        for _, obj in ipairs(Interface.UIComponents) do
-            if obj ~= FOVCircle then
-                obj.Visible = false
+        for p, _ in pairs(ESPStorage) do
+            if not p or not p.Parent or not p:FindFirstChild("LowerTorso") then
+                RemoveESP(p)
             end
         end
-    end
 
-    if VisualSettings.PlayerESP then
         for _, p in ipairs(PlayerCache) do
             local root = p:FindFirstChild("HumanoidRootPart") or p:FindFirstChild("LowerTorso")
-            if root then
+            if root and root.Parent then
+                local sleeper = IsSleeper(p)
                 local dist = (Camera.CFrame.Position - root.Position).Magnitude
-                if dist < VisualSettings.MaxDistance then
+                if dist < VisualSettings.MaxDistance and not (VisualSettings.SleeperCheck and sleeper) then
                     local sPos, onS = Camera:WorldToViewportPoint(root.Position)
-                    local sleeper = IsSleeper(p)
-                    if onS and not (VisualSettings.SleeperCheck and sleeper) then
+                    if onS then
                         if not ESPStorage[p] then
                             ESPStorage[p] = {
                                 Box = CreateDrawing("Square", {Thickness = 1, Filled = false, ZIndex = 2}),
-                                Fill = CreateDrawing("Square", {Thickness = 0, Filled = true, Transparency = 0.4, ZIndex = 1}),
-                                Dist = CreateDrawing("Text", {Size = 13, Center = true, Outline = false, ZIndex = 3})
+                                Fill = CreateDrawing("Square", {Thickness = 0, Filled = true, Transparency = 0.3, ZIndex = 1}),
+                                Dist = CreateDrawing("Text", {Size = 13, Center = true, ZIndex = 3})
                             }
                         end
                         local esp = ESPStorage[p]
-                        local bX, bY = 2800/sPos.Z, 4200/sPos.Z
-                        local bPos = Vector2new(sPos.X - bX/2, sPos.Y - bY/2)
-                        esp.Box.Visible, esp.Box.Size, esp.Box.Position, esp.Box.Color = true, Vector2new(bX, bY), bPos, VisualSettings.ESPColor
+                        local bX, bY = 2500/sPos.Z, 3800/sPos.Z
+                        esp.Box.Visible, esp.Box.Size, esp.Box.Position, esp.Box.Color = true, Vector2new(bX, bY), Vector2new(sPos.X - bX/2, sPos.Y - bY/2), VisualSettings.ESPColor
                         esp.Fill.Visible, esp.Fill.Size, esp.Fill.Position, esp.Fill.Color = true, esp.Box.Size, esp.Box.Position, VisualSettings.ESPColor
                         esp.Dist.Visible, esp.Dist.Text, esp.Dist.Position, esp.Dist.Color = true, string_format("[%dm]%s", dist, sleeper and " SLEEP" or ""), Vector2new(sPos.X, sPos.Y + bY/2 + 2), VisualSettings.ESPColor
-                    elseif ESPStorage[p] then ESPStorage[p].Box.Visible = false ESPStorage[p].Fill.Visible = false ESPStorage[p].Dist.Visible = false end
-                elseif ESPStorage[p] then ESPStorage[p].Box.Visible = false ESPStorage[p].Fill.Visible = false ESPStorage[p].Dist.Visible = false end
-            end
+                    elseif ESPStorage[p] then 
+                        ESPStorage[p].Box.Visible = false ESPStorage[p].Fill.Visible = false ESPStorage[p].Dist.Visible = false 
+                    end
+                elseif ESPStorage[p] then RemoveESP(p) end
+            elseif ESPStorage[p] then RemoveESP(p) end
         end
-    else
-        for _, v in pairs(ESPStorage) do v.Box.Visible = false v.Fill.Visible = false v.Dist.Visible = false end
     end
 
     for _, res in ipairs(ResourceCache) do
-        local active = (res.type == "Stone" and VisualSettings.StoneESP) or (res.type == "Iron" and VisualSettings.IronESP) or (res.type == "Nitrate" and VisualSettings.NitrateESP)
-        if active and res.model.Parent then
+        local enabled = (res.type == "Stone" and VisualSettings.StoneESP) or (res.type == "Iron" and VisualSettings.IronESP) or (res.type == "Nitrate" and VisualSettings.NitrateESP)
+        if enabled then
             local dist = (Camera.CFrame.Position - res.part.Position).Magnitude
             if dist < VisualSettings.MaxDistance then
                 local sPos, onS = Camera:WorldToViewportPoint(res.part.Position)
                 if onS then
-                    if not ResourceStorage[res.model] then ResourceStorage[res.model] = CreateDrawing("Text", {Size = 12, Center = true, Outline = false}) end
-                    local d = ResourceStorage[res.model]
-                    d.Visible, d.Text, d.Position, d.Color = true, string_format("%s [%dm]", res.type, dist), Vector2new(sPos.X, sPos.Y), res.color
-                elseif ResourceStorage[res.model] then ResourceStorage[res.model].Visible = false end
-            elseif ResourceStorage[res.model] then ResourceStorage[res.model].Visible = false end
-        elseif ResourceStorage[res.model] then ResourceStorage[res.model].Visible = false end
+                    if not ResourceStorage[res.part] then ResourceStorage[res.part] = CreateDrawing("Text", {Size = 13, Center = true, Color = res.color, Outline = false, ZIndex = 1}) end
+                    ResourceStorage[res.part].Visible = true
+                    ResourceStorage[res.part].Text = string_format("%s [%dm]", res.type, dist)
+                    ResourceStorage[res.part].Position = Vector2new(sPos.X, sPos.Y)
+                elseif ResourceStorage[res.part] then ResourceStorage[res.part].Visible = false end
+            elseif ResourceStorage[res.part] then ResourceStorage[res.part].Visible = false end
+        elseif ResourceStorage[res.part] then ResourceStorage[res.part].Visible = false end
     end
-    
+
+    -- УНИВЕРСАЛЬНЫЙ AIMBOT
     if AimSettings.Active and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-        local target = nil
-        local maxDist = AimSettings.FOVSize
+        local target, minMag = nil, AimSettings.FOVSize
         for _, p in ipairs(PlayerCache) do
-            if not (AimSettings.SleeperCheck and IsSleeper(p)) then
+            if p.Parent and not (AimSettings.SleeperCheck and IsSleeper(p)) then
                 local part = p:FindFirstChild(AimSettings.TargetArea)
                 if part then
                     local sPos, onS = Camera:WorldToViewportPoint(part.Position)
                     if onS then
                         local mag = (Vector2new(sPos.X, sPos.Y) - mousePos).Magnitude
-                        if mag < maxDist and CheckWall(part) then maxDist = mag target = sPos end
+                        if mag < minMag and CheckWall(part) then minMag = mag target = sPos end
                     end
                 end
             end
         end
         if target then 
-            local jitter = math_random(-10, 10) / 100
-            local smooth = AimSettings.Smoothness + jitter
+            local smooth = AimSettings.Smoothness + (math_random(-10, 10) / 100)
             mousemoverel((target.X - mousePos.X)/smooth, (target.Y - mousePos.Y)/smooth) 
         end
     end
 end)
 
 UserInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.RightShift then 
-        Interface.Visible = not Interface.Visible 
-        CustomNotify("INTERFACE", Interface.Visible and "Opened" or "Closed", Interface.AccentColor)
-    end
+    if input.KeyCode == Enum.KeyCode.RightShift then Interface.Visible = not Interface.Visible end
     if not Interface.Visible then return end
-    
     local m = UserInputService:GetMouseLocation()
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        if m.X > menuPosition.X + 440 and m.X < menuPosition.X + 480 and m.Y > menuPosition.Y and m.Y < menuPosition.Y + 35 then
-            Interface.Visible = false
-            CustomNotify("INTERFACE", "Closed", Interface.AccentColor)
-            return
-        end
-        if m.Y < menuPosition.Y + 35 then Interface.Moving = true dragStartOffset = menuPosition - m return end
-
+        if m.Y < menuPosition.Y + 40 then Interface.Moving = true dragStartOffset = menuPosition - m return end
         for col, elements in pairs(Interface.MenuComponents) do
             for _, el in ipairs(elements) do
-                local pos = menuPosition + Vector2new((col == "left" and 25 or 260), el.ypos)
-                if el.type == "toggle" and m.X > pos.X and m.X < pos.X + 180 and m.Y > pos.Y and m.Y < pos.Y + 20 then
+                local pos = menuPosition + Vector2new((col == "left" and 20 or 265), el.ypos)
+                if el.type == "toggle" and m.X > pos.X and m.X < pos.X + 200 and m.Y > pos.Y and m.Y < pos.Y + 15 then
                     el.state = not el.state el.callback(el.state)
-                elseif el.type == "slider" and m.X > pos.X and m.X < pos.X + 190 and m.Y > pos.Y + 15 and m.Y < pos.Y + 30 then
+                elseif el.type == "slider" and m.X > pos.X and m.X < pos.X + 200 and m.Y > pos.Y + 15 and m.Y < pos.Y + 25 then
                     Interface.DraggingSlider = el
+                elseif el.type == "button" and m.X > pos.X and m.X < pos.X + 200 and m.Y > pos.Y and m.Y < pos.Y + 20 then
+                    el.callback(el)
                 elseif el.type == "colorpicker" then
-                    if m.X > pos.X and m.X < pos.X + 190 and m.Y > pos.Y + 18 and m.Y < pos.Y + 35 then Interface.ColorMenuOpen = not Interface.ColorMenuOpen return end
-                    if Interface.ColorMenuOpen then
+                    if m.X > pos.X + 170 and m.X < pos.X + 200 and m.Y > pos.Y and m.Y < pos.Y + 15 then 
+                        Interface.ColorMenuOpen = not Interface.ColorMenuOpen 
+                    elseif Interface.ColorMenuOpen then
                         for i, box in ipairs(el.boxes) do
-                            if m.X > box.Position.X and m.X < box.Position.X + 25 and m.Y > box.Position.Y and m.Y < box.Position.Y + 18 then
+                            if m.X > box.Position.X and m.X < box.Position.X + 20 and m.Y > box.Position.Y and m.Y < box.Position.Y + 15 then
                                 el.callback(box.Color) Interface.ColorMenuOpen = false return
                             end
                         end
@@ -515,5 +558,4 @@ UserInputService.InputBegan:Connect(function(input)
         end
     end
 end)
-
 UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then Interface.Moving = false Interface.DraggingSlider = nil end end)
