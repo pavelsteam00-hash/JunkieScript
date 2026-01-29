@@ -29,6 +29,9 @@ local AimSettings = {
 
 local VisualSettings = {
     PlayerESP = false,
+    BoxESP = false,
+    InfoESP = false,
+    HealthESP = false,
     SleeperCheck = false,
     StoneESP = false,
     IronESP = false,
@@ -121,25 +124,25 @@ local function CustomNotify(title, text)
         
         local t = 0
         while t < 1 and n.Active do
-            t = t + 0.04 
+            t = t + (0.02 + math_random() * 0.02)
             local curPos = startPos:Lerp(targetPos, t)
             bg.Position = curPos
             line.Position = curPos
             tLabel.Position = curPos + Vector2new(20, 15)
             bLabel.Position = curPos + Vector2new(20, 42)
-            RunService.RenderStepped:Wait()
+            RunService.Heartbeat:Wait()
         end
         
-        task_wait(1.0)
+        task_wait(1.0 + math_random() * 0.5)
         
         while t > 0 and n.Active do
-            t = t - 0.06
+            t = t - (0.04 + math_random() * 0.02)
             local curPos = startPos:Lerp(targetPos, t)
             bg.Position = curPos
             line.Position = curPos
             tLabel.Position = curPos + Vector2new(20, 15)
             bLabel.Position = curPos + Vector2new(20, 42)
-            RunService.RenderStepped:Wait()
+            RunService.Heartbeat:Wait()
         end
         if n.Active then for _, obj in ipairs(n.objs) do obj:Remove() end end
     end)
@@ -148,7 +151,7 @@ end
 task_spawn(function()
     local screen = Camera.ViewportSize
     local center = screen / 2
-    local soft_blue = Color3fromRGB(200, 220, 255)
+    local purple_theme = Color3fromRGB(180, 120, 255)
     
     local black_out = Drawing.new("Square")
     black_out.Size = screen
@@ -186,7 +189,7 @@ task_spawn(function()
     load_text.Font = 2
     load_text.Center = true
     load_text.Position = center - Vector2new(0, 18)
-    load_text.Color = soft_blue
+    load_text.Color = purple_theme
     load_text.Transparency = 0
     load_text.Visible = true
     load_text.ZIndex = 20001
@@ -207,7 +210,7 @@ task_spawn(function()
         load_text.Transparency = i
         status.Transparency = i
         for _, l in ipairs(lines) do l.Transparency = i * 0.4 end
-        RunService.RenderStepped:Wait()
+        RunService.Heartbeat:Wait()
     end
 
     local start = tick()
@@ -228,7 +231,7 @@ task_spawn(function()
         load_text.Transparency = i
         status.Transparency = i
         for _, l in ipairs(lines) do l.Transparency = i * 0.4 end
-        RunService.RenderStepped:Wait()
+        RunService.Heartbeat:Wait()
     end
     
     black_out:Remove() load_circle:Remove() load_text:Remove() status:Remove()
@@ -308,24 +311,25 @@ task_spawn(function()
     AddSlider("FOV Diameter", 20, 400, 80, function(v) AimSettings.FOVSize = v end, "left", 180)
     AddSlider("Smooth Factor", 1, 30, 5, function(v) AimSettings.Smoothness = v end, "left", 230)
 
-    AddToggle("Player Visuals", false, function(v) 
+    AddToggle("Player ESP", false, function(v) 
         VisualSettings.PlayerESP = v 
         CustomNotify("PLAYER ESP", v and "ENABLED" or "DISABLED")
     end, "right", 60)
-    AddToggle("Hide Sleepers", false, function(v) VisualSettings.SleeperCheck = v end, "right", 85)
+    AddToggle("Box ESP", false, function(v) VisualSettings.BoxESP = v end, "right", 85)
+    AddToggle("Info ESP", false, function(v) VisualSettings.InfoESP = v end, "right", 110)
+    AddToggle("Health ESP", false, function(v) VisualSettings.HealthESP = v end, "right", 135)
+    AddToggle("Hide Sleepers", false, function(v) VisualSettings.SleeperCheck = v end, "right", 160)
+    
     AddToggle("Stone ESP", false, function(v) 
         VisualSettings.StoneESP = v 
-        CustomNotify("STONE ESP", v and "ENABLED" or "DISABLED")
-    end, "right", 110)
+    end, "right", 195)
     AddToggle("Iron ESP", false, function(v) 
         VisualSettings.IronESP = v 
-        CustomNotify("IRON ESP", v and "ENABLED" or "DISABLED")
-    end, "right", 135)
+    end, "right", 220)
     AddToggle("Nitrate ESP", false, function(v) 
         VisualSettings.NitrateESP = v 
-        CustomNotify("NITRATE ESP", v and "ENABLED" or "DISABLED")
-    end, "right", 160)
-    AddColorPicker("Cheat Color (ESP)", function(c) VisualSettings.ESPColor = c end, "right", 190)
+    end, "right", 245)
+    AddColorPicker("Cheat Color (ESP)", function(c) VisualSettings.ESPColor = c end, "right", 275)
 end)
 
 local FOVCircle = CreateDrawing("Circle", { Thickness = 1, Color = AimSettings.FOVColor, Transparency = 0.5, Filled = false, Visible = false, NumSides = 64, ZIndex = 999 })
@@ -336,9 +340,13 @@ local function RemoveESP(obj)
             ESPStorage[obj].Box.Visible = false
             ESPStorage[obj].Fill.Visible = false
             ESPStorage[obj].Dist.Visible = false
+            ESPStorage[obj].HealthBg.Visible = false
+            ESPStorage[obj].HealthBar.Visible = false
             ESPStorage[obj].Box:Remove() 
             ESPStorage[obj].Fill:Remove() 
             ESPStorage[obj].Dist:Remove() 
+            ESPStorage[obj].HealthBg:Remove()
+            ESPStorage[obj].HealthBar:Remove()
         end)
         ESPStorage[obj] = nil
     end
@@ -351,6 +359,29 @@ local function IsSleeper(model)
         if rj and typeof(rj.CurrentAngle) == "number" and rj.CurrentAngle ~= 0 then return true end
     end
     return false
+end
+
+local function GetTridentHealth(model)
+    local folders = {"Stats", "Data", "HealthFolder", "Values"}
+    for _, fName in ipairs(folders) do
+        local folder = model:FindFirstChild(fName)
+        if folder then
+            local hp = folder:FindFirstChild("Health") or folder:FindFirstChild("HP")
+            local mhp = folder:FindFirstChild("MaxHealth") or folder:FindFirstChild("MaxHP")
+            if hp and hp:IsA("NumberValue") then
+                return hp.Value, (mhp and mhp.Value or 100)
+            end
+        end
+    end
+    local directHP = model:FindFirstChild("Health") or model:FindFirstChild("hp")
+    if directHP and directHP:IsA("NumberValue") then
+        return directHP.Value, 100
+    end
+    local hum = model:FindFirstChildOfClass("Humanoid")
+    if hum then
+        return hum.Health, hum.MaxHealth
+    end
+    return 100, 100
 end
 
 local function CheckWall(part)
@@ -388,11 +419,11 @@ task_spawn(function()
             end
         end
         PlayerCache, ResourceCache = p_tmp, r_tmp
-        task_wait(1.0)
+        task_wait(2.0 + math_random())
     end
 end)
 
-RunService.RenderStepped:Connect(function()
+RunService.Heartbeat:Connect(function()
     if not Interface.Loaded then return end
     local mousePos = UserInputService:GetMouseLocation()
     FOVCircle.Visible = AimSettings.Active and AimSettings.ShowFOV
@@ -452,18 +483,17 @@ RunService.RenderStepped:Connect(function()
         end
     else for _, obj in ipairs(Interface.UIComponents) do if obj ~= FOVCircle then obj.Visible = false end end end
 
-    -- УНИВЕРСАЛЬНАЯ ОЧИСТКА ESP
     if not VisualSettings.PlayerESP then
         for p, _ in pairs(ESPStorage) do RemoveESP(p) end
     else
         for p, _ in pairs(ESPStorage) do
-            if not p or not p.Parent or not p:FindFirstChild("LowerTorso") then
+            if not p or not p.Parent or not (p:FindFirstChild("LowerTorso") or p:FindFirstChild("HumanoidRootPart")) then
                 RemoveESP(p)
             end
         end
 
         for _, p in ipairs(PlayerCache) do
-            local root = p:FindFirstChild("HumanoidRootPart") or p:FindFirstChild("LowerTorso")
+            local root = p:FindFirstChild("LowerTorso") or p:FindFirstChild("HumanoidRootPart")
             if root and root.Parent then
                 local sleeper = IsSleeper(p)
                 local dist = (Camera.CFrame.Position - root.Position).Magnitude
@@ -474,16 +504,48 @@ RunService.RenderStepped:Connect(function()
                             ESPStorage[p] = {
                                 Box = CreateDrawing("Square", {Thickness = 1, Filled = false, ZIndex = 2}),
                                 Fill = CreateDrawing("Square", {Thickness = 0, Filled = true, Transparency = 0.3, ZIndex = 1}),
-                                Dist = CreateDrawing("Text", {Size = 13, Center = true, ZIndex = 3})
+                                Dist = CreateDrawing("Text", {Size = 13, Center = true, ZIndex = 3}),
+                                HealthBg = CreateDrawing("Square", {Thickness = 1, Filled = true, Color = Color3fromRGB(0,0,0), ZIndex = 2}),
+                                HealthBar = CreateDrawing("Square", {Thickness = 1, Filled = true, Color = Color3fromRGB(0,255,0), ZIndex = 3})
                             }
                         end
                         local esp = ESPStorage[p]
-                        local bX, bY = 2500/sPos.Z, 3800/sPos.Z
-                        esp.Box.Visible, esp.Box.Size, esp.Box.Position, esp.Box.Color = true, Vector2new(bX, bY), Vector2new(sPos.X - bX/2, sPos.Y - bY/2), VisualSettings.ESPColor
-                        esp.Fill.Visible, esp.Fill.Size, esp.Fill.Position, esp.Fill.Color = true, esp.Box.Size, esp.Box.Position, VisualSettings.ESPColor
-                        esp.Dist.Visible, esp.Dist.Text, esp.Dist.Position, esp.Dist.Color = true, string_format("[%dm]%s", dist, sleeper and " SLEEP" or ""), Vector2new(sPos.X, sPos.Y + bY/2 + 2), VisualSettings.ESPColor
+                        local bX, bY = 3200/sPos.Z, 4800/sPos.Z
+                        local bPos = Vector2new(sPos.X - bX/2, sPos.Y - bY/2)
+                        
+                        esp.Box.Visible = VisualSettings.BoxESP
+                        esp.Box.Size = Vector2new(bX, bY)
+                        esp.Box.Position = bPos
+                        esp.Box.Color = VisualSettings.ESPColor
+                        
+                        esp.Fill.Visible = VisualSettings.BoxESP
+                        esp.Fill.Size = esp.Box.Size
+                        esp.Fill.Position = esp.Box.Position
+                        esp.Fill.Color = VisualSettings.ESPColor
+                        
+                        esp.Dist.Visible = VisualSettings.InfoESP
+                        esp.Dist.Text = string_format("[%dm]%s", dist, sleeper and " SLEEP" or "")
+                        esp.Dist.Position = Vector2new(sPos.X, sPos.Y + bY/2 + 2)
+                        esp.Dist.Color = VisualSettings.ESPColor
+                        
+                        local curH, maxH = GetTridentHealth(p)
+                        local healthPercent = math_clamp(curH / maxH, 0, 1)
+                        
+                        esp.HealthBg.Visible = VisualSettings.HealthESP
+                        esp.HealthBg.Size = Vector2new(2, bY)
+                        esp.HealthBg.Position = bPos - Vector2new(5, 0)
+                        
+                        esp.HealthBar.Visible = VisualSettings.HealthESP
+                        esp.HealthBar.Size = Vector2new(1, bY * healthPercent)
+                        esp.HealthBar.Position = esp.HealthBg.Position + Vector2new(1, bY - (bY * healthPercent))
+                        esp.HealthBar.Color = Color3fromRGB(255 - (255 * healthPercent), 255 * healthPercent, 0)
+                        
                     elseif ESPStorage[p] then 
-                        ESPStorage[p].Box.Visible = false ESPStorage[p].Fill.Visible = false ESPStorage[p].Dist.Visible = false 
+                        ESPStorage[p].Box.Visible = false 
+                        ESPStorage[p].Fill.Visible = false 
+                        ESPStorage[p].Dist.Visible = false 
+                        ESPStorage[p].HealthBg.Visible = false
+                        ESPStorage[p].HealthBar.Visible = false
                     end
                 elseif ESPStorage[p] then RemoveESP(p) end
             elseif ESPStorage[p] then RemoveESP(p) end
@@ -506,14 +568,17 @@ RunService.RenderStepped:Connect(function()
         elseif ResourceStorage[res.part] then ResourceStorage[res.part].Visible = false end
     end
 
-    -- УНИВЕРСАЛЬНЫЙ AIMBOT
     if AimSettings.Active and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         local target, minMag = nil, AimSettings.FOVSize
         for _, p in ipairs(PlayerCache) do
             if p.Parent and not (AimSettings.SleeperCheck and IsSleeper(p)) then
                 local part = p:FindFirstChild(AimSettings.TargetArea)
                 if part then
-                    local sPos, onS = Camera:WorldToViewportPoint(part.Position)
+                    local targetPos = part.Position
+                    if AimSettings.TargetArea == "LowerTorso" then
+                        targetPos = targetPos + Vector3.new(0, 0.6, 0)
+                    end
+                    local sPos, onS = Camera:WorldToViewportPoint(targetPos)
                     if onS then
                         local mag = (Vector2new(sPos.X, sPos.Y) - mousePos).Magnitude
                         if mag < minMag and CheckWall(part) then minMag = mag target = sPos end
@@ -522,7 +587,7 @@ RunService.RenderStepped:Connect(function()
             end
         end
         if target then 
-            local smooth = AimSettings.Smoothness + (math_random(-10, 10) / 100)
+            local smooth = (AimSettings.Smoothness * 2) + (math_random(-20, 20) / 10)
             mousemoverel((target.X - mousePos.X)/smooth, (target.Y - mousePos.Y)/smooth) 
         end
     end
